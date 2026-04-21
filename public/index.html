@@ -1,0 +1,1396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ViralFlow — AI Content Automation</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --bg2: #12121a;
+    --bg3: #1a1a28;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.12);
+    --text: #f0f0ff;
+    --text2: #8888aa;
+    --text3: #55557777;
+    --accent: #7c3aed;
+    --accent2: #a855f7;
+    --green: #22c55e;
+    --red: #ef4444;
+    --amber: #f59e0b;
+    --blue: #3b82f6;
+    --pink: #ec4899;
+    --cyan: #06b6d4;
+    --card-r: 14px;
+    --font: 'Space Grotesk', sans-serif;
+    --mono: 'JetBrains Mono', monospace;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font); min-height: 100vh; overflow-x: hidden; }
+
+  body::before {
+    content: '';
+    position: fixed; inset: 0; z-index: 0;
+    background: radial-gradient(ellipse 80% 60% at 20% 10%, rgba(124,58,237,0.08) 0%, transparent 60%),
+                radial-gradient(ellipse 60% 50% at 80% 80%, rgba(168,85,247,0.05) 0%, transparent 60%);
+    pointer-events: none;
+  }
+
+  /* Login */
+  #login-screen {
+    position: fixed; inset: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--bg);
+  }
+  .login-card {
+    background: var(--bg2); border: 1px solid var(--border2);
+    border-radius: 20px; padding: 48px 40px; width: 380px;
+    text-align: center;
+  }
+  .login-logo { font-size: 32px; font-weight: 700; margin-bottom: 8px; }
+  .login-logo span { background: linear-gradient(135deg, var(--accent2), var(--cyan)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .login-sub { color: var(--text2); margin-bottom: 32px; font-size: 14px; }
+
+  /* Layout */
+  #app { display: flex; min-height: 100vh; position: relative; z-index: 1; }
+
+  /* Sidebar */
+  .sidebar {
+    width: 220px; background: var(--bg2); border-right: 1px solid var(--border);
+    display: flex; flex-direction: column; position: fixed; left: 0; top: 0; bottom: 0;
+    z-index: 50;
+  }
+  .sidebar-logo {
+    padding: 24px 20px 20px; font-size: 18px; font-weight: 700; letter-spacing: -0.5px;
+    border-bottom: 1px solid var(--border);
+  }
+  .sidebar-logo span { color: var(--accent2); }
+  .sidebar-logo .version { font-size: 10px; color: var(--text2); font-weight: 400; font-family: var(--mono); }
+
+  .nav { padding: 12px 8px; flex: 1; }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+    border-radius: 10px; cursor: pointer; color: var(--text2); font-size: 14px;
+    font-weight: 500; transition: all 0.15s; margin-bottom: 2px; border: none;
+    background: none; width: 100%; text-align: left;
+  }
+  .nav-item:hover { background: rgba(255,255,255,0.05); color: var(--text); }
+  .nav-item.active { background: rgba(124,58,237,0.2); color: var(--accent2); }
+  .nav-item .icon { font-size: 16px; width: 20px; text-align: center; }
+  .nav-badge {
+    margin-left: auto; background: var(--accent); color: white;
+    font-size: 10px; padding: 2px 6px; border-radius: 10px; font-family: var(--mono);
+  }
+
+  .sidebar-footer { padding: 16px; border-top: 1px solid var(--border); }
+  .status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); display: inline-block; margin-right: 6px; animation: pulse 2s infinite; }
+  .status-dot.off { background: var(--red); animation: none; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
+
+  /* Main content */
+  .main { margin-left: 220px; flex: 1; padding: 32px; min-height: 100vh; }
+
+  .page { display: none; }
+  .page.active { display: block; }
+
+  .page-header { margin-bottom: 28px; }
+  .page-header h1 { font-size: 24px; font-weight: 700; letter-spacing: -0.5px; }
+  .page-header p { color: var(--text2); font-size: 14px; margin-top: 4px; }
+
+  /* Cards */
+  .card {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: var(--card-r); padding: 24px;
+  }
+  .card-sm { padding: 16px 20px; }
+
+  /* Stats grid */
+  .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+  .stat-card {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: var(--card-r); padding: 20px 24px;
+    position: relative; overflow: hidden;
+  }
+  .stat-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: var(--accent-color, var(--accent));
+  }
+  .stat-label { font-size: 12px; color: var(--text2); font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat-value { font-size: 32px; font-weight: 700; margin: 6px 0 0; font-family: var(--mono); }
+  .stat-sub { font-size: 12px; color: var(--text2); margin-top: 4px; }
+
+  /* Platform cards */
+  .platforms-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 24px; }
+  .platform-card {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: var(--card-r); padding: 20px 24px;
+    display: flex; align-items: center; gap: 16px;
+    transition: border-color 0.2s;
+  }
+  .platform-card.is-connected { border-color: rgba(34,197,94,0.25); }
+  .platform-icon { font-size: 28px; width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .platform-info { flex: 1; min-width: 0; }
+  .platform-name { font-weight: 600; font-size: 15px; }
+  .platform-account { font-size: 12px; color: var(--text2); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .platform-status { display: flex; align-items: center; gap: 6px; margin-top: 8px; font-size: 12px; }
+  .badge { padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; font-family: var(--mono); }
+  .badge-green { background: rgba(34,197,94,0.15); color: var(--green); }
+  .badge-red { background: rgba(239,68,68,0.1); color: var(--red); }
+  .badge-amber { background: rgba(245,158,11,0.15); color: var(--amber); }
+  .badge-purple { background: rgba(168,85,247,0.15); color: var(--accent2); }
+  .badge-blue { background: rgba(59,130,246,0.15); color: var(--blue); }
+
+  /* Buttons */
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 18px; border-radius: 10px; border: none; cursor: pointer;
+    font-family: var(--font); font-size: 14px; font-weight: 600;
+    transition: all 0.15s; text-decoration: none;
+  }
+  .btn-primary { background: var(--accent); color: white; }
+  .btn-primary:hover { background: var(--accent2); transform: translateY(-1px); }
+  .btn-secondary { background: var(--bg3); color: var(--text); border: 1px solid var(--border2); }
+  .btn-secondary:hover { border-color: var(--accent2); }
+  .btn-danger { background: rgba(239,68,68,0.15); color: var(--red); border: 1px solid rgba(239,68,68,0.2); }
+  .btn-danger:hover { background: rgba(239,68,68,0.25); }
+  .btn-green { background: rgba(34,197,94,0.15); color: var(--green); border: 1px solid rgba(34,197,94,0.2); }
+  .btn-green:hover { background: rgba(34,197,94,0.25); }
+  .btn-sm { padding: 6px 12px; font-size: 12px; border-radius: 8px; }
+  .btn-xs { padding: 4px 8px; font-size: 11px; border-radius: 6px; }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
+
+  /* Inputs */
+  input, select, textarea {
+    background: var(--bg3); border: 1px solid var(--border2); color: var(--text);
+    border-radius: 10px; padding: 10px 14px; font-family: var(--font); font-size: 14px;
+    width: 100%; transition: border-color 0.15s; outline: none;
+  }
+  input:focus, select:focus, textarea:focus { border-color: var(--accent2); }
+  textarea { resize: vertical; min-height: 100px; }
+  label { font-size: 13px; color: var(--text2); font-weight: 500; display: block; margin-bottom: 6px; }
+  .form-group { margin-bottom: 16px; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+  /* Table */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; padding: 10px 16px; color: var(--text2); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); }
+  td { padding: 12px 16px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+  tr:last-child td { border-bottom: none; }
+
+  /* Toggle */
+  .toggle { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+  .toggle-switch {
+    width: 40px; height: 22px; background: var(--border2); border-radius: 11px;
+    position: relative; transition: background 0.2s; flex-shrink: 0;
+  }
+  .toggle-switch.on { background: var(--accent); }
+  .toggle-switch::after {
+    content: ''; position: absolute; top: 3px; left: 3px;
+    width: 16px; height: 16px; border-radius: 50%; background: white;
+    transition: transform 0.2s;
+  }
+  .toggle-switch.on::after { transform: translateX(18px); }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 24px; }
+  .tab { padding: 10px 16px; cursor: pointer; color: var(--text2); font-size: 14px; font-weight: 500; border-bottom: 2px solid transparent; transition: all 0.15s; }
+  .tab.active { color: var(--accent2); border-bottom-color: var(--accent2); }
+
+  /* Toast */
+  #toast-container { position: fixed; bottom: 24px; right: 24px; z-index: 999; display: flex; flex-direction: column; gap: 8px; }
+  .toast {
+    background: var(--bg2); border: 1px solid var(--border2); border-radius: 12px;
+    padding: 12px 18px; font-size: 13px; display: flex; align-items: center; gap: 10px;
+    animation: slideIn 0.2s ease; min-width: 260px; max-width: 380px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  }
+  .toast.success { border-color: rgba(34,197,94,0.3); }
+  .toast.error   { border-color: rgba(239,68,68,0.3); }
+  .toast.info    { border-color: rgba(59,130,246,0.3); }
+  @keyframes slideIn { from { transform: translateX(100px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+  .spinner { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.2); border-top-color: var(--accent2); border-radius: 50%; animation: spin 0.8s linear infinite; flex-shrink: 0; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Modal */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 200; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
+  .modal { background: var(--bg2); border: 1px solid var(--border2); border-radius: 20px; padding: 32px; width: 620px; max-width: 95vw; max-height: 90vh; overflow-y: auto; }
+  .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+  .modal-title { font-size: 18px; font-weight: 700; }
+  .close-btn { background: none; border: none; cursor: pointer; color: var(--text2); font-size: 20px; line-height: 1; padding: 4px; }
+
+  /* Niche chips */
+  .niche-chip { display: inline-flex; align-items: center; gap: 6px; background: rgba(124,58,237,0.15); border: 1px solid rgba(124,58,237,0.3); border-radius: 20px; padding: 4px 12px; font-size: 12px; }
+
+  /* Video card */
+  .video-card { display: flex; gap: 16px; padding: 16px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 10px; transition: border-color 0.15s; }
+  .video-card:hover { border-color: var(--border2); }
+  .video-thumb { width: 80px; height: 80px; border-radius: 8px; background: var(--bg3); object-fit: cover; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 24px; }
+
+  /* Platform icon colors */
+  .yt { background: rgba(255,0,0,0.1); color: #ff4444; }
+  .fb { background: rgba(24,119,242,0.1); color: #1877f2; }
+  .ig { background: rgba(214,63,163,0.1); color: #e1306c; }
+  .tk { background: rgba(0,0,0,0.3); color: #69c9d0; }
+
+  /* Setup steps */
+  .setup-step { display: flex; gap: 16px; align-items: flex-start; padding: 20px; border: 1px solid var(--border); border-radius: 12px; margin-bottom: 12px; }
+  .step-num { width: 32px; height: 32px; border-radius: 50%; background: var(--accent); color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; flex-shrink: 0; }
+  .step-content h3 { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+  .step-content p { font-size: 13px; color: var(--text2); line-height: 1.5; }
+  .code-block { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; font-family: var(--mono); font-size: 12px; color: var(--accent2); overflow-x: auto; margin-top: 8px; word-break: break-all; }
+
+  /* Scheduler status */
+  .sched-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .sched-row:last-child { border-bottom: none; }
+  .sched-label { color: var(--text2); }
+  .sched-val { font-family: var(--mono); font-size: 12px; color: var(--text); text-align: right; }
+
+  /* API key status indicator */
+  .api-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .api-row:last-child { border-bottom: none; }
+  .api-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .api-dot.ok { background: var(--green); }
+  .api-dot.warn { background: var(--amber); }
+  .api-dot.err { background: var(--red); }
+
+  @media (max-width: 900px) {
+    .sidebar { width: 60px; }
+    .nav-item span:not(.icon) { display: none; }
+    .sidebar-logo .text { display: none; }
+    .main { margin-left: 60px; padding: 20px; }
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+    .platforms-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Login Screen -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">Viral<span>Flow</span></div>
+    <p class="login-sub">AI-Powered Content Automation</p>
+    <div class="form-group">
+      <label>Username</label>
+      <input type="text" id="login-user" value="admin" />
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" id="login-pass" placeholder="Enter password" onkeydown="if(event.key==='Enter')login()" />
+    </div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center;" onclick="login()">
+      Sign In
+    </button>
+    <p style="margin-top:16px;font-size:12px;color:var(--text2);">Default: admin / change-me-now</p>
+  </div>
+</div>
+
+<!-- App -->
+<div id="app" style="display:none;">
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div>⚡ <span class="text">Viral<span>Flow</span></span></div>
+      <div class="version">v1.1</div>
+    </div>
+    <nav class="nav">
+      <button class="nav-item active" onclick="showPage('dashboard', event)">
+        <span class="icon">📊</span><span>Dashboard</span>
+      </button>
+      <button class="nav-item" onclick="showPage('accounts', event)">
+        <span class="icon">🔗</span><span>Accounts</span>
+      </button>
+      <button class="nav-item" onclick="showPage('niches', event)">
+        <span class="icon">🎯</span><span>Niches</span>
+      </button>
+      <button class="nav-item" onclick="showPage('videos', event)">
+        <span class="icon">🎬</span><span>Videos</span>
+      </button>
+      <button class="nav-item" onclick="showPage('scheduler', event)">
+        <span class="icon">⏰</span><span>Scheduler</span>
+      </button>
+      <button class="nav-item" onclick="showPage('settings', event)">
+        <span class="icon">⚙️</span><span>Settings</span>
+      </button>
+      <button class="nav-item" onclick="showPage('setup', event)">
+        <span class="icon">🚀</span><span>Setup Guide</span>
+      </button>
+    </nav>
+    <div class="sidebar-footer">
+      <div style="font-size:12px;color:var(--text2);margin-bottom:8px;" id="sidebar-status">
+        <span class="status-dot" id="sched-dot"></span><span id="sched-status-text">Loading...</span>
+      </div>
+      <button class="btn btn-secondary btn-sm" style="width:100%" onclick="logout()">Sign Out</button>
+    </div>
+  </aside>
+
+  <main class="main">
+
+    <!-- DASHBOARD -->
+    <div class="page active" id="page-dashboard">
+      <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div>
+          <h1>Dashboard</h1>
+          <p>Your AI content automation overview</p>
+        </div>
+        <div style="text-align:right;font-size:12px;color:var(--text2);font-family:var(--mono);">
+          <div id="app-url-display" style="color:var(--accent2);"></div>
+          <div id="last-refresh" style="margin-top:2px;"></div>
+        </div>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card" style="--accent-color:var(--accent2)">
+          <div class="stat-label">Total Videos</div>
+          <div class="stat-value" id="s-total">—</div>
+          <div class="stat-sub">Generated by AI</div>
+        </div>
+        <div class="stat-card" style="--accent-color:var(--green)">
+          <div class="stat-label">Published</div>
+          <div class="stat-value" id="s-published">—</div>
+          <div class="stat-sub">Across all platforms</div>
+        </div>
+        <div class="stat-card" style="--accent-color:var(--amber)">
+          <div class="stat-label">Scheduled</div>
+          <div class="stat-value" id="s-scheduled">—</div>
+          <div class="stat-sub" id="s-ready-sub">Queued to post</div>
+        </div>
+        <div class="stat-card" style="--accent-color:var(--cyan)">
+          <div class="stat-label">Connected</div>
+          <div class="stat-value" id="s-accounts">—</div>
+          <div class="stat-sub">Social accounts</div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px;">
+        <div class="card">
+          <h2 style="font-size:15px;font-weight:600;margin-bottom:16px;">⚡ Quick Actions</h2>
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <button class="btn btn-primary" onclick="generateNow()" id="gen-btn">✨ Generate Video Now</button>
+            <button class="btn btn-secondary" onclick="showPage('accounts', event)">🔗 Connect Social Accounts</button>
+            <button class="btn btn-secondary" onclick="showPage('scheduler', event)">⏰ View Schedule</button>
+            <button class="btn btn-secondary" onclick="triggerSchedulerRun()">▶ Run Scheduler Now</button>
+          </div>
+        </div>
+        <div class="card">
+          <h2 style="font-size:15px;font-weight:600;margin-bottom:16px;">📋 Recent Activity</h2>
+          <div id="recent-posts" style="font-size:13px;color:var(--text2);">Loading...</div>
+        </div>
+      </div>
+
+      <!-- Scheduler status banner -->
+      <div class="card" style="margin-bottom:20px;border-color:rgba(124,58,237,0.2);">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <h2 style="font-size:15px;font-weight:600;">🤖 Automation Status</h2>
+          <button class="btn btn-secondary btn-sm" onclick="loadDashboard()">↻ Refresh</button>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:16px;" id="sched-status-grid">
+          <div style="background:var(--bg3);border-radius:10px;padding:14px;">
+            <div style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px;">Last Generated</div>
+            <div style="font-size:13px;font-weight:500;margin-top:4px;font-family:var(--mono);" id="ds-last-gen">—</div>
+          </div>
+          <div style="background:var(--bg3);border-radius:10px;padding:14px;">
+            <div style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px;">Last Published</div>
+            <div style="font-size:13px;font-weight:500;margin-top:4px;font-family:var(--mono);" id="ds-last-pub">—</div>
+          </div>
+          <div style="background:var(--bg3);border-radius:10px;padding:14px;">
+            <div style="font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px;">Next Generation</div>
+            <div style="font-size:13px;font-weight:500;margin-top:4px;font-family:var(--mono);" id="ds-next-gen">—</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2 style="font-size:15px;font-weight:600;margin-bottom:16px;">🌐 Connected Platforms</h2>
+        <div class="platforms-grid" id="dash-platforms">Loading...</div>
+      </div>
+    </div>
+
+    <!-- ACCOUNTS -->
+    <div class="page" id="page-accounts">
+      <div class="page-header">
+        <h1>Social Accounts</h1>
+        <p>Connect your social media accounts to start auto-publishing</p>
+      </div>
+
+      <div id="accounts-redirect-info" style="display:none;" class="card" style="margin-bottom:16px;border-color:rgba(245,158,11,0.3);">
+        <p style="font-size:13px;color:var(--text2);">
+          ⚠️ Your OAuth redirect URIs must match exactly. Your current APP_URL is:<br>
+          <code id="redirect-uri-display" style="color:var(--accent2);font-family:var(--mono);font-size:12px;"></code>
+        </p>
+      </div>
+
+      <div class="platforms-grid" id="accounts-grid">Loading...</div>
+
+      <div class="card" style="margin-top:16px;">
+        <h2 style="font-size:15px;font-weight:600;margin-bottom:16px;">📋 Your OAuth Redirect URIs</h2>
+        <p style="font-size:13px;color:var(--text2);margin-bottom:12px;">These must be added exactly in each platform's developer console:</p>
+        <div id="redirect-uris-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+      </div>
+    </div>
+
+    <!-- NICHES -->
+    <div class="page" id="page-niches">
+      <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div>
+          <h1>Content Niches</h1>
+          <p>Define the topics AI will create content about</p>
+        </div>
+        <button class="btn btn-primary" onclick="showNicheModal()">+ Add Niche</button>
+      </div>
+      <div id="niches-list"></div>
+    </div>
+
+    <!-- VIDEOS -->
+    <div class="page" id="page-videos">
+      <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div>
+          <h1>Videos</h1>
+          <p>AI-generated content ready to publish</p>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <select id="video-filter" onchange="loadVideos()" style="width:140px;">
+            <option value="">All Status</option>
+            <option value="ready">Ready</option>
+            <option value="scheduled">Scheduled</option>
+            <option value="published">Published</option>
+            <option value="failed">Failed</option>
+          </select>
+          <button class="btn btn-primary" onclick="generateNow()">✨ Generate</button>
+        </div>
+      </div>
+      <div id="videos-list" class="card" style="padding:8px;min-height:100px;"></div>
+    </div>
+
+    <!-- SCHEDULER -->
+    <div class="page" id="page-scheduler">
+      <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div>
+          <h1>Smart Scheduler</h1>
+          <p>Posts go out at peak engagement times automatically</p>
+        </div>
+        <button class="btn btn-primary" onclick="triggerSchedulerRun()">▶ Run Now</button>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
+        <div class="card">
+          <h2 style="font-size:15px;font-weight:600;margin-bottom:16px;">🤖 Scheduler Status</h2>
+          <div id="scheduler-status-detail"></div>
+        </div>
+        <div class="card">
+          <h2 style="font-size:15px;font-weight:600;margin-bottom:16px;">⏰ Optimal Posting Times</h2>
+          <div id="optimal-times"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2 style="font-size:15px;font-weight:600;margin-bottom:16px;">📅 Upcoming Queue</h2>
+        <div id="scheduled-queue"></div>
+      </div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div class="page" id="page-settings">
+      <div class="page-header">
+        <h1>Settings</h1>
+        <p>Configure automation behavior</p>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+        <div class="card">
+          <h2 style="font-size:15px;font-weight:600;margin-bottom:20px;">🤖 Automation</h2>
+          <div class="form-group">
+            <div class="toggle" onclick="toggleSetting('auto_generate')">
+              <div class="toggle-switch" id="toggle-auto_generate"></div>
+              <div>
+                <div style="font-size:14px;font-weight:500;">Auto-Generate Daily Content</div>
+                <div style="font-size:12px;color:var(--text2);">AI creates videos every day at 6 AM</div>
+              </div>
+            </div>
+          </div>
+          <div class="form-group" style="margin-top:16px;">
+            <div class="toggle" onclick="toggleSetting('auto_publish')">
+              <div class="toggle-switch" id="toggle-auto_publish"></div>
+              <div>
+                <div style="font-size:14px;font-weight:500;">Auto-Publish at Optimal Time</div>
+                <div style="font-size:12px;color:var(--text2);">Automatically post at peak engagement hours</div>
+              </div>
+            </div>
+          </div>
+          <div style="margin-top:20px;padding-top:20px;border-top:1px solid var(--border);">
+            <button class="btn btn-secondary btn-sm" onclick="saveSettings()" style="width:100%;">Save Settings</button>
+          </div>
+        </div>
+        <div class="card">
+          <h2 style="font-size:15px;font-weight:600;margin-bottom:20px;">🔑 API Key Status</h2>
+          <div id="api-key-status">Loading...</div>
+          <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
+            <p style="font-size:12px;color:var(--text2);">API keys are set as environment variables in Render dashboard → Environment. You must redeploy after adding keys.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SETUP GUIDE -->
+    <div class="page" id="page-setup">
+      <div class="page-header">
+        <h1>🚀 Setup Guide</h1>
+        <p>Follow these steps to get ViralFlow fully running — takes about 30 minutes</p>
+      </div>
+
+      <div class="card" style="margin-bottom:20px;border-color:rgba(34,197,94,0.2);">
+        <h2 style="font-size:16px;font-weight:700;margin-bottom:4px;">✅ Step 1 — Already Done!</h2>
+        <p style="font-size:13px;color:var(--text2);">ViralFlow is deployed on Render and running. Your app URL is shown in the Dashboard.</p>
+      </div>
+
+      <div class="card" style="margin-bottom:20px;">
+        <h2 style="font-size:16px;font-weight:700;margin-bottom:16px;">Step 2 — Fix Your API Keys</h2>
+        <div class="setup-step">
+          <div class="step-num">!</div>
+          <div class="step-content">
+            <h3 style="color:var(--amber);">Fix GROQ_API_KEY</h3>
+            <p>Your current key starts with <code>xai-</code> which is an <strong>xAI/Grok key</strong>, not a Groq key. They are different services.<br><br>
+            1. Go to <strong>console.groq.com</strong> → Sign up free<br>
+            2. API Keys → Create New Key — it will start with <code>gsk_</code><br>
+            3. Add it as <code>GROQ_API_KEY</code> in Render → Environment → Redeploy</p>
+          </div>
+        </div>
+        <div class="setup-step">
+          <div class="step-num">B</div>
+          <div class="step-content">
+            <h3>Pexels API (FREE — Stock Videos & Images)</h3>
+            <p>1. Go to <strong>pexels.com/api</strong> → Create free account<br>
+            2. Your API Key is on the API page — copy it<br>
+            3. Add as <code>PEXELS_API_KEY</code> in Render Environment</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:20px;">
+        <h2 style="font-size:16px;font-weight:700;margin-bottom:16px;">Step 3 — Fix Environment Variables in Render</h2>
+        <div class="setup-step">
+          <div class="step-num">3</div>
+          <div class="step-content">
+            <h3>Required Variables</h3>
+            <p>Go to your Render service → <strong>Environment</strong> tab. Make sure all these are set:</p>
+            <div class="code-block">APP_URL=https://viralflow-1xsh.onrender.com
+SESSION_SECRET=any-random-32-char-string
+NODE_ENV=production
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=your-password-here
+GROQ_API_KEY=gsk_xxxx  ← must start with gsk_
+PEXELS_API_KEY=your-pexels-key
+YOUTUBE_CLIENT_ID=your-client-id
+YOUTUBE_CLIENT_SECRET=your-client-secret
+YOUTUBE_REDIRECT_URI=https://viralflow-1xsh.onrender.com/auth/youtube/callback</div>
+            <p style="margin-top:8px;color:var(--amber);font-size:12px;">⚠️ After adding/changing any variable in Render, click <strong>Manual Deploy → Deploy latest commit</strong> to apply changes.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:20px;">
+        <h2 style="font-size:16px;font-weight:700;margin-bottom:16px;">Step 4 — Connect Social Platforms</h2>
+        <div class="setup-step">
+          <div class="step-num">📺</div>
+          <div class="step-content">
+            <h3>YouTube — Currently Connected ✅</h3>
+            <p>Your YouTube is connected for testing. To re-authorize or fix token issues:<br>
+            1. Go to <strong>console.cloud.google.com</strong> → Your project<br>
+            2. APIs & Services → Credentials → OAuth 2.0 Client<br>
+            3. Authorized redirect URIs must include: <code id="yt-redirect-uri" style="color:var(--accent2);font-size:11px;"></code><br>
+            4. Click <strong>Connect YouTube</strong> in the Accounts page</p>
+          </div>
+        </div>
+        <div class="setup-step">
+          <div class="step-num">📘</div>
+          <div class="step-content">
+            <h3>Facebook + Instagram (add after YouTube works)</h3>
+            <p>1. <strong>developers.facebook.com</strong> → My Apps → Create App → Consumer<br>
+            2. Add "Facebook Login" product → Settings → Valid OAuth Redirect URIs:<br>
+            <code style="font-size:11px;color:var(--accent2);" id="fb-redirect-uri"></code><br>
+            3. Add <code>FACEBOOK_APP_ID</code>, <code>FACEBOOK_APP_SECRET</code>, <code>FACEBOOK_REDIRECT_URI</code> to Render<br>
+            4. Instagram connects automatically if your Facebook Page has a linked Instagram Business account</p>
+          </div>
+        </div>
+        <div class="setup-step">
+          <div class="step-num">🎵</div>
+          <div class="step-content">
+            <h3>TikTok (add after Facebook works)</h3>
+            <p>1. <strong>developers.tiktok.com</strong> → Manage Apps → Create App<br>
+            2. Add: Login Kit + Content Posting API<br>
+            3. Redirect URI: <code style="font-size:11px;color:var(--accent2);" id="tt-redirect-uri"></code><br>
+            4. Add <code>TIKTOK_CLIENT_KEY</code>, <code>TIKTOK_CLIENT_SECRET</code>, <code>TIKTOK_REDIRECT_URI</code> to Render</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:20px;">
+        <h2 style="font-size:16px;font-weight:700;margin-bottom:16px;">Step 5 — Enable Auto-Pilot</h2>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;font-size:13px;">
+          <div style="padding:16px;background:var(--bg3);border-radius:10px;">
+            <div style="font-size:16px;margin-bottom:8px;">1️⃣</div>
+            <strong>Add a Niche</strong>
+            <p style="color:var(--text2);margin-top:4px;">Go to Niches → Add topics for AI to create content about (e.g. "AI Tools", "Make Money Online")</p>
+          </div>
+          <div style="padding:16px;background:var(--bg3);border-radius:10px;">
+            <div style="font-size:16px;margin-bottom:8px;">2️⃣</div>
+            <strong>Turn on Auto-Generate</strong>
+            <p style="color:var(--text2);margin-top:4px;">Settings → Auto-Generate Daily Content → ON. AI will generate a new video every day at 6 AM.</p>
+          </div>
+          <div style="padding:16px;background:var(--bg3);border-radius:10px;">
+            <div style="font-size:16px;margin-bottom:8px;">3️⃣</div>
+            <strong>Turn on Auto-Publish</strong>
+            <p style="color:var(--text2);margin-top:4px;">Settings → Auto-Publish at Optimal Time → ON. Posts will go live at peak engagement times automatically.</p>
+          </div>
+          <div style="padding:16px;background:var(--bg3);border-radius:10px;">
+            <div style="font-size:16px;margin-bottom:8px;">4️⃣</div>
+            <strong>Test it First</strong>
+            <p style="color:var(--text2);margin-top:4px;">Generate a video manually → review the script → click Publish to test the full workflow before enabling auto-publish.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2 style="font-size:16px;font-weight:700;margin-bottom:16px;">💰 Monetization Requirements</h2>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;font-size:13px;">
+          <div style="padding:16px;background:var(--bg3);border-radius:10px;">
+            <div style="font-size:20px;margin-bottom:8px;">📺</div>
+            <strong>YouTube</strong>
+            <p style="color:var(--text2);margin-top:4px;">1,000 subscribers + 4,000 watch hours → YouTube Partner Program (ads revenue)</p>
+          </div>
+          <div style="padding:16px;background:var(--bg3);border-radius:10px;">
+            <div style="font-size:20px;margin-bottom:8px;">📘</div>
+            <strong>Facebook</strong>
+            <p style="color:var(--text2);margin-top:4px;">10,000 followers + 30,000 min watched → In-stream ads eligibility</p>
+          </div>
+          <div style="padding:16px;background:var(--bg3);border-radius:10px;">
+            <div style="font-size:20px;margin-bottom:8px;">🎵</div>
+            <strong>TikTok</strong>
+            <p style="color:var(--text2);margin-top:4px;">10,000 followers + 100k views in 30 days → TikTok Creator Fund / LIVE Gifts</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- Niche Modal -->
+<div class="modal-overlay" id="niche-modal" style="display:none;">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="niche-modal-title">Add Niche</div>
+      <button class="close-btn" onclick="closeModal('niche-modal')">✕</button>
+    </div>
+    <div class="form-group">
+      <label>Niche Name</label>
+      <input type="text" id="niche-name" placeholder="e.g. AI & Productivity" />
+    </div>
+    <div class="form-group">
+      <label>Keywords (comma separated)</label>
+      <input type="text" id="niche-keywords" placeholder="artificial intelligence, productivity, automation" />
+    </div>
+    <div class="form-group">
+      <label>Content Style</label>
+      <select id="niche-style">
+        <option value="educational">Educational (How-to, Tips)</option>
+        <option value="motivational">Motivational (Inspire, Stories)</option>
+        <option value="entertainment">Entertainment (Fun, Trending)</option>
+        <option value="tutorial">Tutorial (Step-by-Step)</option>
+        <option value="review">Review (Products, Services)</option>
+      </select>
+    </div>
+    <input type="hidden" id="niche-edit-id" />
+    <div style="display:flex;gap:10px;margin-top:24px;">
+      <button class="btn btn-primary" onclick="saveNiche()" style="flex:1">Save Niche</button>
+      <button class="btn btn-secondary" onclick="closeModal('niche-modal')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Video Modal -->
+<div class="modal-overlay" id="video-modal" style="display:none;">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Video Details</div>
+      <button class="close-btn" onclick="closeModal('video-modal')">✕</button>
+    </div>
+    <div id="video-modal-content"></div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+
+<script>
+const API = '/api';
+const state = { settings: {}, accounts: [], appUrl: '', config: {} };
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function toast(msg, type = 'info', duration = 4000) {
+  const icons = { success: '✅', error: '❌', info: 'ℹ️' };
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.innerHTML = `<span>${icons[type]||'ℹ️'}</span><span>${msg}</span>`;
+  document.getElementById('toast-container').appendChild(el);
+  setTimeout(() => el.remove(), duration);
+}
+
+function escHtml(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function fmtDate(ts) {
+  if (!ts) return '—';
+  const d = new Date(typeof ts === 'string' && ts.includes('T') ? ts : ts * 1000);
+  if (isNaN(d)) return '—';
+  return d.toLocaleString();
+}
+
+function fmtRelative(isoOrTs) {
+  if (!isoOrTs) return '—';
+  const d = new Date(isoOrTs);
+  if (isNaN(d)) return '—';
+  const diff = Math.floor((Date.now() - d) / 1000);
+  if (diff < 60) return `${diff}s ago`;
+  if (diff < 3600) return `${Math.floor(diff/60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff/3600)}h ago`;
+  return d.toLocaleDateString();
+}
+
+function fmtFuture(isoOrTs) {
+  if (!isoOrTs) return '—';
+  const d = new Date(isoOrTs);
+  if (isNaN(d)) return '—';
+  const diff = Math.floor((d - Date.now()) / 1000);
+  if (diff <= 0) return 'Now';
+  if (diff < 3600) return `in ${Math.floor(diff/60)}m`;
+  if (diff < 86400) return `in ${Math.floor(diff/3600)}h`;
+  return d.toLocaleString();
+}
+
+function platformIcon(p) {
+  return { youtube: '📺', facebook: '📘', instagram: '📸', tiktok: '🎵' }[p] || '🌐';
+}
+
+function statusBadge(s) {
+  return { published:'badge-green', scheduled:'badge-amber', ready:'badge-purple', failed:'badge-red', pending:'badge-blue' }[s] || 'badge-blue';
+}
+
+function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+// ─── Auth ─────────────────────────────────────────────────────────────────────
+
+async function login() {
+  const u = document.getElementById('login-user').value;
+  const p = document.getElementById('login-pass').value;
+  const res = await fetch(`${API}/login`, {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ username: u, password: p })
+  });
+  if (res.ok) {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'flex';
+    initApp();
+  } else {
+    toast('Invalid credentials', 'error');
+  }
+}
+
+async function logout() {
+  await fetch(`${API}/logout`, { method: 'POST' });
+  location.reload();
+}
+
+async function checkAuth() {
+  try {
+    const res = await fetch(`${API}/me`);
+    const d = await res.json();
+    return d.authenticated;
+  } catch { return false; }
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+
+async function initApp() {
+  // Load config first (gets APP_URL from server)
+  try {
+    const cfg = await (await fetch(`${API}/config`)).json();
+    state.config = cfg;
+    state.appUrl = cfg.appUrl || window.location.origin;
+  } catch {
+    state.appUrl = window.location.origin;
+  }
+
+  await loadSettings();
+  loadDashboard();
+  updateSetupRedirectLinks();
+
+  // Handle OAuth success/error redirects
+  const params = new URLSearchParams(location.search);
+  if (params.get('success')) {
+    toast(`${params.get('success').toUpperCase()} connected successfully! ✅`, 'success');
+    history.replaceState({}, '', '/');
+    loadDashboard();
+  }
+  if (params.get('error')) {
+    toast(`Connection failed: ${params.get('error')}`, 'error');
+    history.replaceState({}, '', '/');
+  }
+
+  // Auto-refresh dashboard every 30 seconds
+  setInterval(() => {
+    if (document.getElementById('page-dashboard').classList.contains('active')) {
+      loadDashboard();
+    }
+  }, 30000);
+}
+
+function updateSetupRedirectLinks() {
+  const url = state.appUrl;
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  set('yt-redirect-uri', `${url}/auth/youtube/callback`);
+  set('fb-redirect-uri', `${url}/auth/facebook/callback`);
+  set('tt-redirect-uri', `${url}/auth/tiktok/callback`);
+  set('app-url-display', url);
+
+  // Redirect URI panel in accounts page
+  const list = document.getElementById('redirect-uris-list');
+  if (list) {
+    list.innerHTML = [
+      { platform: '📺 YouTube', uri: `${url}/auth/youtube/callback` },
+      { platform: '📘 Facebook', uri: `${url}/auth/facebook/callback` },
+      { platform: '🎵 TikTok', uri: `${url}/auth/tiktok/callback` },
+    ].map(r => `
+      <div style="display:flex;align-items:center;gap:12px;padding:10px;background:var(--bg3);border-radius:8px;">
+        <span style="font-size:13px;font-weight:500;width:120px;">${r.platform}</span>
+        <code style="flex:1;font-family:var(--mono);font-size:12px;color:var(--accent2);word-break:break-all;">${r.uri}</code>
+        <button class="btn btn-secondary btn-xs" onclick="copyText('${r.uri}')">Copy</button>
+      </div>`).join('');
+  }
+
+  // Also update the redirect info in accounts page
+  const rdisplay = document.getElementById('redirect-uri-display');
+  if (rdisplay) rdisplay.textContent = url;
+}
+
+function copyText(txt) {
+  navigator.clipboard.writeText(txt).then(() => toast('Copied!', 'success'));
+}
+
+// ─── Navigation ───────────────────────────────────────────────────────────────
+
+function showPage(name, e) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById(`page-${name}`).classList.add('active');
+  if (e && e.currentTarget) e.currentTarget.classList.add('active');
+
+  if (name === 'dashboard') loadDashboard();
+  if (name === 'accounts') loadAccounts();
+  if (name === 'niches') loadNiches();
+  if (name === 'videos') loadVideos();
+  if (name === 'scheduler') loadScheduler();
+  if (name === 'settings') loadSettingsPage();
+}
+
+// ─── Dashboard ────────────────────────────────────────────────────────────────
+
+async function loadDashboard() {
+  try {
+    const r = await fetch(`${API}/stats`);
+    const d = await r.json();
+
+    document.getElementById('s-total').textContent = d.totalVideos;
+    document.getElementById('s-published').textContent = d.published;
+    document.getElementById('s-scheduled').textContent = d.scheduled;
+    document.getElementById('s-accounts').textContent = d.accounts;
+
+    const readyEl = document.getElementById('s-ready-sub');
+    if (readyEl) readyEl.textContent = d.ready > 0 ? `${d.ready} ready to post` : 'Queued to post';
+
+    // Recent posts
+    const recent = document.getElementById('recent-posts');
+    if (!d.recentPosts?.length) {
+      recent.innerHTML = '<p style="color:var(--text2);">No posts yet. Generate your first video! ✨</p>';
+    } else {
+      recent.innerHTML = d.recentPosts.map(p => `
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;padding:8px;border-radius:8px;background:var(--bg3);">
+          <span style="font-size:16px;">${platformIcon(p.platform)}</span>
+          <div style="flex:1;overflow:hidden;">
+            <div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(p.title||'Untitled')}</div>
+            <div style="font-size:11px;color:var(--text2);">${p.platform} • ${fmtRelative(p.created_at)}</div>
+          </div>
+          <span class="badge ${statusBadge(p.status)}">${p.status}</span>
+        </div>`).join('');
+    }
+
+    // Scheduler status
+    const s = d.scheduler || {};
+    const lastGenEl = document.getElementById('ds-last-gen');
+    const lastPubEl = document.getElementById('ds-last-pub');
+    const nextGenEl = document.getElementById('ds-next-gen');
+    if (lastGenEl) lastGenEl.textContent = s.lastGenerated ? fmtRelative(s.lastGenerated) : 'Never';
+    if (lastPubEl) lastPubEl.textContent = s.lastPublished ? fmtRelative(s.lastPublished) : 'Never';
+    if (nextGenEl) nextGenEl.textContent = s.nextGeneration ? fmtFuture(s.nextGeneration) : 'Tomorrow 6AM';
+
+    // Sidebar scheduler indicator
+    const dot = document.getElementById('sched-dot');
+    const txt = document.getElementById('sched-status-text');
+    if (s.running) {
+      dot.className = 'status-dot';
+      txt.textContent = 'Automation Active';
+    } else {
+      dot.className = 'status-dot off';
+      txt.textContent = 'Scheduler Offline';
+    }
+
+    // Platform cards
+    const accs = await (await fetch(`${API}/accounts`)).json();
+    state.accounts = accs;
+    const platforms = ['youtube', 'facebook', 'instagram', 'tiktok'];
+    document.getElementById('dash-platforms').innerHTML = platforms.map(p => {
+      const acc = accs.find(a => a.platform === p);
+      return platformCard(p, acc, false);
+    }).join('');
+
+    // Last refresh
+    const lr = document.getElementById('last-refresh');
+    if (lr) lr.textContent = 'Updated ' + new Date().toLocaleTimeString();
+
+  } catch (err) {
+    console.error('Dashboard load error:', err);
+  }
+}
+
+// ─── Accounts ────────────────────────────────────────────────────────────────
+
+async function loadAccounts() {
+  updateSetupRedirectLinks();
+  const accs = await (await fetch(`${API}/accounts`)).json();
+  state.accounts = accs;
+  const platforms = ['youtube', 'facebook', 'instagram', 'tiktok'];
+  document.getElementById('accounts-grid').innerHTML = platforms.map(p => {
+    const acc = accs.find(a => a.platform === p);
+    return platformCard(p, acc, true);
+  }).join('');
+}
+
+function platformCard(p, acc, showActions = false) {
+  const icons   = { youtube:'📺', facebook:'📘', instagram:'📸', tiktok:'🎵' };
+  const colors  = { youtube:'yt', facebook:'fb', instagram:'ig', tiktok:'tk' };
+  const labels  = { youtube:'YouTube', facebook:'Facebook', instagram:'Instagram', tiktok:'TikTok' };
+  const connected = acc?.connected === 1;
+  const accountName = acc?.account_name || acc?.page_name || 'Connected';
+  const accountId = acc?.account_id || acc?.ig_user_id || '';
+
+  return `<div class="platform-card ${connected ? 'is-connected' : ''}">
+    <div class="platform-icon ${colors[p]}">${icons[p]}</div>
+    <div class="platform-info">
+      <div class="platform-name">${labels[p]}</div>
+      <div class="platform-account">${connected ? accountName : 'Not connected'}</div>
+      ${connected && accountId ? `<div style="font-size:11px;color:var(--text3);font-family:var(--mono);">${accountId.substring(0,20)}...</div>` : ''}
+      <div class="platform-status">
+        <span class="badge ${connected ? 'badge-green' : 'badge-red'}">${connected ? '● Live' : '○ Disconnected'}</span>
+        ${connected ? `<span style="font-size:11px;color:var(--text2);">Updated ${fmtRelative(acc?.updated_at)}</span>` : ''}
+      </div>
+    </div>
+    ${showActions ? `
+    <div style="flex-shrink:0;">
+      ${connected
+        ? `<button class="btn btn-danger btn-sm" onclick="disconnectPlatform('${p}')">Disconnect</button>`
+        : `<a class="btn btn-primary btn-sm" href="/auth/${p}">Connect</a>`
+      }
+    </div>` : ''}
+  </div>`;
+}
+
+async function disconnectPlatform(platform) {
+  if (!confirm(`Disconnect ${platform}? You will need to re-authorize it to publish again.`)) return;
+  await fetch(`/auth/disconnect/${platform}`, { method: 'POST' });
+  toast(`${platform} disconnected`, 'info');
+  loadAccounts();
+  loadDashboard();
+}
+
+// ─── Niches ───────────────────────────────────────────────────────────────────
+
+async function loadNiches() {
+  const niches = await (await fetch(`${API}/niches`)).json();
+  const container = document.getElementById('niches-list');
+
+  if (!niches.length) {
+    container.innerHTML = '<div class="card" style="text-align:center;color:var(--text2);padding:40px;">No niches yet. Add your first niche to start generating content!</div>';
+    return;
+  }
+
+  container.innerHTML = niches.map(n => `
+    <div class="card card-sm" style="margin-bottom:12px;display:flex;align-items:center;gap:16px;">
+      <div style="width:10px;height:10px;border-radius:50%;background:${n.active ? 'var(--green)' : 'var(--text2)'};flex-shrink:0;"></div>
+      <div style="flex:1;">
+        <div style="font-weight:600;font-size:15px;">${escHtml(n.name)}</div>
+        <div style="font-size:12px;color:var(--text2);margin-top:4px;">${n.content_style} • ${n.keywords || 'No keywords'}</div>
+        <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:4px;">
+          ${(n.keywords||'').split(',').slice(0,6).map(k=>`<span class="niche-chip">${escHtml(k.trim())}</span>`).join('')}
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;flex-shrink:0;">
+        <button class="btn btn-secondary btn-sm" onclick="editNiche(${escHtml(JSON.stringify(n))})">Edit</button>
+        <button class="btn btn-primary btn-sm" onclick="generateNow(${n.id})">Generate</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteNiche(${n.id})">Delete</button>
+      </div>
+    </div>`).join('');
+}
+
+function showNicheModal(niche = null) {
+  document.getElementById('niche-modal-title').textContent = niche ? 'Edit Niche' : 'Add Niche';
+  document.getElementById('niche-name').value = niche?.name || '';
+  document.getElementById('niche-keywords').value = niche?.keywords || '';
+  document.getElementById('niche-style').value = niche?.content_style || 'educational';
+  document.getElementById('niche-edit-id').value = niche?.id || '';
+  document.getElementById('niche-modal').style.display = 'flex';
+}
+
+function editNiche(niche) { showNicheModal(niche); }
+
+async function saveNiche() {
+  const id = document.getElementById('niche-edit-id').value;
+  const data = {
+    name: document.getElementById('niche-name').value,
+    keywords: document.getElementById('niche-keywords').value,
+    content_style: document.getElementById('niche-style').value,
+    active: 1,
+  };
+  if (!data.name) return toast('Name is required', 'error');
+
+  if (id) {
+    await fetch(`${API}/niches/${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data) });
+    toast('Niche updated', 'success');
+  } else {
+    await fetch(`${API}/niches`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data) });
+    toast('Niche created! AI will use this for content generation.', 'success');
+  }
+  closeModal('niche-modal');
+  loadNiches();
+}
+
+async function deleteNiche(id) {
+  if (!confirm('Delete this niche? Videos already generated will remain.')) return;
+  await fetch(`${API}/niches/${id}`, { method: 'DELETE' });
+  toast('Niche deleted', 'info');
+  loadNiches();
+}
+
+// ─── Videos ───────────────────────────────────────────────────────────────────
+
+async function loadVideos() {
+  const status = document.getElementById('video-filter')?.value || '';
+  const url = status ? `${API}/videos?status=${status}` : `${API}/videos`;
+  const videos = await (await fetch(url)).json();
+  const container = document.getElementById('videos-list');
+
+  if (!videos.length) {
+    container.innerHTML = '<div style="text-align:center;color:var(--text2);padding:40px;">No videos yet. Click Generate to create your first one!</div>';
+    return;
+  }
+
+  container.innerHTML = videos.map(v => `
+    <div class="video-card">
+      <div class="video-thumb">
+        ${v.thumbnail_url
+          ? `<img src="${escHtml(v.thumbnail_url)}" style="width:100%;height:100%;border-radius:8px;object-fit:cover;" onerror="this.parentElement.textContent='🎬'">`
+          : '🎬'}
+      </div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-weight:600;font-size:14px;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(v.title||'Untitled')}</div>
+        <div style="font-size:12px;color:var(--text2);margin-bottom:8px;">${escHtml(v.niche_name||'Unknown niche')} • ${fmtDate(v.created_at)}</div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <span class="badge ${statusBadge(v.status)}">${v.status}</span>
+          ${v.scheduled_at ? `<span style="font-size:11px;color:var(--text2);">📅 ${fmtDate(v.scheduled_at)}</span>` : ''}
+          ${v.video_url ? `<span style="font-size:11px;color:var(--green);">🎥 Has video</span>` : ''}
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;">
+        <button class="btn btn-secondary btn-sm" onclick="viewVideo('${v.id}')">View</button>
+        ${v.status === 'ready' || v.status === 'generated'
+          ? `<button class="btn btn-green btn-sm" onclick="publishNow('${v.id}')">Publish</button>`
+          : ''}
+        ${v.status === 'ready'
+          ? `<button class="btn btn-secondary btn-sm" onclick="scheduleOptimal('${v.id}')">Schedule</button>`
+          : ''}
+        <button class="btn btn-danger btn-sm" onclick="deleteVideo('${v.id}')">Delete</button>
+      </div>
+    </div>`).join('');
+}
+
+async function generateNow(nicheId = null) {
+  const btn = document.getElementById('gen-btn');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<div class="spinner"></div> Generating...'; }
+
+  try {
+    const body = nicheId ? { niche_id: nicheId } : {};
+    const res = await fetch(`${API}/videos/generate`, {
+      method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body)
+    });
+    const d = await res.json();
+    if (d.error) { toast(d.error, 'error'); return; }
+    toast(`✨ AI is generating a video for "${d.niche}"! Check Videos in ~15 seconds.`, 'success', 6000);
+    setTimeout(() => {
+      if (document.getElementById('page-videos').classList.contains('active')) loadVideos();
+    }, 15000);
+  } catch (err) {
+    toast('Generation failed: ' + err.message, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = '✨ Generate Video Now'; }
+  }
+}
+
+async function publishNow(id) {
+  if (!confirm('Publish this video to all connected platforms now?')) return;
+  toast('Publishing... this may take a few seconds', 'info');
+  try {
+    const res = await fetch(`${API}/videos/${id}/publish`, {
+      method: 'POST', headers: {'Content-Type':'application/json'}, body: '{}'
+    });
+    const data = await res.json();
+    const ok   = data.results?.filter(r => r.success).length || 0;
+    const fail = (data.results?.length || 0) - ok;
+    if (ok > 0) {
+      toast(`Published to ${ok} platform(s)${fail ? `, ${fail} failed` : ''}`, 'success');
+    } else {
+      const errMsg = data.results?.map(r => r.error).filter(Boolean)[0] || 'All platforms failed';
+      toast(`Publish failed: ${errMsg}`, 'error', 6000);
+    }
+    loadVideos();
+    loadDashboard();
+  } catch (err) {
+    toast('Publish error: ' + err.message, 'error');
+  }
+}
+
+async function scheduleOptimal(id) {
+  const res = await fetch(`${API}/videos/${id}/schedule-optimal`, {
+    method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ platform: 'youtube' })
+  });
+  const d = await res.json();
+  if (d.success) {
+    toast(`Scheduled for ${d.scheduled_for} 📅`, 'success');
+    loadVideos();
+  } else {
+    toast('Schedule failed', 'error');
+  }
+}
+
+async function viewVideo(id) {
+  const res = await fetch(`${API}/videos/${id}`);
+  const v = await res.json();
+  document.getElementById('video-modal-content').innerHTML = `
+    <div class="form-group">
+      <label>Title</label>
+      <input type="text" id="vm-title" value="${escHtml(v.title||'')}">
+    </div>
+    <div class="form-group">
+      <label>Script</label>
+      <textarea id="vm-script" style="min-height:200px;font-family:var(--mono);font-size:12px;line-height:1.6;">${escHtml(v.script||'')}</textarea>
+    </div>
+    <div class="form-group">
+      <label>Description & Hashtags</label>
+      <textarea id="vm-desc" style="min-height:100px;">${escHtml(v.description||'')}</textarea>
+    </div>
+    ${v.video_url ? `<div class="form-group"><label>Stock Video URL (Pexels)</label><div style="font-size:12px;color:var(--accent2);word-break:break-all;padding:8px;background:var(--bg3);border-radius:8px;">${escHtml(v.video_url)}</div></div>` : ''}
+    ${v.thumbnail_url ? `<div class="form-group"><label>Thumbnail</label><img src="${escHtml(v.thumbnail_url)}" style="width:100%;max-height:180px;object-fit:cover;border-radius:8px;"></div>` : ''}
+    <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap;">
+      <button class="btn btn-primary" onclick="saveVideo('${v.id}')">Save Changes</button>
+      <button class="btn btn-green" onclick="publishNow('${v.id}');closeModal('video-modal')">Publish Now</button>
+      <button class="btn btn-secondary" onclick="scheduleOptimal('${v.id}');closeModal('video-modal')">Schedule at Optimal Time</button>
+      <button class="btn btn-secondary" onclick="closeModal('video-modal')">Close</button>
+    </div>
+    ${v.posts?.length ? `
+    <div style="margin-top:20px;border-top:1px solid var(--border);padding-top:16px;">
+      <label>Publishing History</label>
+      <div style="margin-top:8px;">
+        ${v.posts.map(p=>`<div style="display:flex;align-items:center;gap:8px;font-size:12px;padding:8px;border-radius:8px;background:var(--bg3);margin-bottom:6px;">
+          <span>${platformIcon(p.platform)}</span>
+          <span style="color:var(--text2);width:80px;">${p.platform}</span>
+          <span class="badge ${statusBadge(p.status)}">${p.status}</span>
+          ${p.published_at ? `<span style="color:var(--text2);font-size:11px;">${fmtDate(p.published_at)}</span>` : ''}
+          ${p.error_msg ? `<span style="color:var(--red);font-size:11px;flex:1;overflow:hidden;text-overflow:ellipsis;">${escHtml(p.error_msg)}</span>` : ''}
+        </div>`).join('')}
+      </div>
+    </div>` : ''}
+  `;
+  document.getElementById('video-modal').style.display = 'flex';
+}
+
+async function saveVideo(id) {
+  await fetch(`${API}/videos/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      title: document.getElementById('vm-title').value,
+      script: document.getElementById('vm-script').value,
+      description: document.getElementById('vm-desc').value,
+      status: 'ready',
+    })
+  });
+  toast('Video saved!', 'success');
+}
+
+async function deleteVideo(id) {
+  if (!confirm('Delete this video and its publish history?')) return;
+  await fetch(`${API}/videos/${id}`, { method: 'DELETE' });
+  toast('Video deleted', 'info');
+  loadVideos();
+}
+
+// ─── Scheduler ────────────────────────────────────────────────────────────────
+
+async function loadScheduler() {
+  const [statusRes, timesRes, videosRes] = await Promise.all([
+    fetch(`${API}/scheduler/status`),
+    fetch(`${API}/optimal-times`),
+    fetch(`${API}/videos?status=scheduled`),
+  ]);
+  const s = await statusRes.json();
+  const times = await timesRes.json();
+  const scheduledVideos = await videosRes.json();
+
+  // Status detail
+  document.getElementById('scheduler-status-detail').innerHTML = `
+    <div class="sched-row"><span class="sched-label">Status</span><span class="sched-val" style="color:${s.running?'var(--green)':'var(--red)'};">${s.running ? '● Running' : '○ Offline'}</span></div>
+    <div class="sched-row"><span class="sched-label">Last Check</span><span class="sched-val">${s.lastCheck ? fmtRelative(s.lastCheck) : '—'}</span></div>
+    <div class="sched-row"><span class="sched-label">Last Generated</span><span class="sched-val">${s.lastGenerated ? fmtRelative(s.lastGenerated) : 'Never'}</span></div>
+    <div class="sched-row"><span class="sched-label">Last Published</span><span class="sched-val">${s.lastPublished ? fmtRelative(s.lastPublished) : 'Never'}</span></div>
+    <div class="sched-row"><span class="sched-label">Next Generation</span><span class="sched-val">${s.nextGeneration ? fmtFuture(s.nextGeneration) : 'Tomorrow 6AM'}</span></div>
+    <div class="sched-row"><span class="sched-label">Generated Today</span><span class="sched-val">${s.todayGenerated || 0}</span></div>
+    <div class="sched-row"><span class="sched-label">Published Today</span><span class="sched-val">${s.todayPublished || 0}</span></div>
+    ${s.errors?.length ? `
+    <div style="margin-top:12px;">
+      <div style="font-size:11px;color:var(--text2);margin-bottom:6px;">Recent Errors</div>
+      ${s.errors.slice(-3).map(e=>`<div style="font-size:11px;color:var(--red);padding:4px;background:rgba(239,68,68,0.05);border-radius:4px;margin-bottom:4px;">${fmtRelative(e.time)}: ${escHtml(e.msg)}</div>`).join('')}
+    </div>` : ''}
+  `;
+
+  // Optimal times
+  const platforms = [
+    { key:'youtube', icon:'📺', color:'var(--red)' },
+    { key:'facebook', icon:'📘', color:'#1877f2' },
+    { key:'instagram', icon:'📸', color:'#e1306c' },
+    { key:'tiktok', icon:'🎵', color:'var(--cyan)' },
+  ];
+  document.getElementById('optimal-times').innerHTML = platforms.map(({ key, icon, color }) => {
+    const pts = times[key] || [];
+    return `<div style="margin-bottom:14px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+        <span>${icon}</span>
+        <span style="font-size:13px;font-weight:600;color:${color};">${key.charAt(0).toUpperCase()+key.slice(1)}</span>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        ${pts.map(t=>`<span style="background:var(--bg3);border:1px solid var(--border2);border-radius:6px;padding:4px 10px;font-size:12px;font-family:var(--mono);">${t.label}</span>`).join('')}
+      </div>
+    </div>`;
+  }).join('');
+
+  // Queue
+  const queueEl = document.getElementById('scheduled-queue');
+  if (!scheduledVideos.length) {
+    queueEl.innerHTML = '<div style="color:var(--text2);font-size:13px;padding:20px;text-align:center;">No videos scheduled. Generate a video and click "Schedule at Optimal Time".</div>';
+  } else {
+    queueEl.innerHTML = `<div class="table-wrap"><table>
+      <thead><tr><th>Title</th><th>Niche</th><th>Scheduled For</th><th>Actions</th></tr></thead>
+      <tbody>${scheduledVideos.map(v=>`<tr>
+        <td style="font-weight:500;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(v.title||'Untitled')}</td>
+        <td style="color:var(--text2);">${escHtml(v.niche_name||'—')}</td>
+        <td style="font-family:var(--mono);font-size:12px;">${fmtDate(v.scheduled_at)}</td>
+        <td><button class="btn btn-green btn-xs" onclick="publishNow('${v.id}')">Publish Now</button></td>
+      </tr>`).join('')}</tbody>
+    </table></div>`;
+  }
+}
+
+async function triggerSchedulerRun() {
+  toast('Triggering scheduler run...', 'info');
+  try {
+    await fetch(`${API}/scheduler/run-now`, { method: 'POST' });
+    toast('Scheduler triggered! Check Videos in ~15 seconds.', 'success');
+    setTimeout(loadDashboard, 5000);
+  } catch (err) {
+    toast('Trigger failed: ' + err.message, 'error');
+  }
+}
+
+// ─── Settings ─────────────────────────────────────────────────────────────────
+
+async function loadSettings() {
+  try {
+    const rows = await (await fetch(`${API}/settings`)).json();
+    state.settings = rows;
+    ['auto_generate', 'auto_publish'].forEach(key => {
+      const el = document.getElementById(`toggle-${key}`);
+      if (el) el.className = `toggle-switch ${rows[key] === '1' ? 'on' : ''}`;
+    });
+  } catch {}
+}
+
+async function loadSettingsPage() {
+  await loadSettings();
+
+  // API key status
+  const cfg = state.config;
+  const apiEl = document.getElementById('api-key-status');
+  if (apiEl) {
+    const keys = [
+      { label: 'Groq (AI Script Writer)', ok: cfg.groqConnected, note: cfg.groqConnected ? 'Connected' : 'Missing or invalid — must start with gsk_' },
+      { label: 'Pexels (Stock Videos)', ok: cfg.pexelsConnected, note: cfg.pexelsConnected ? 'Connected' : 'Missing — free at pexels.com/api' },
+      { label: 'HuggingFace (Image AI)', ok: cfg.huggingfaceConnected, note: cfg.huggingfaceConnected ? 'Connected' : 'Optional — free at huggingface.co' },
+      { label: 'YouTube OAuth', ok: !!state.accounts?.find(a=>a.platform==='youtube'&&a.connected), note: 'Checked via connected accounts' },
+    ];
+    apiEl.innerHTML = keys.map(k => `
+      <div class="api-row">
+        <div class="api-dot ${k.ok ? 'ok' : 'err'}"></div>
+        <div style="flex:1;">
+          <div style="font-size:13px;font-weight:500;">${k.label}</div>
+          <div style="font-size:11px;color:${k.ok ? 'var(--text2)' : 'var(--amber)'};">${k.note}</div>
+        </div>
+      </div>`).join('');
+  }
+}
+
+function toggleSetting(key) {
+  const el = document.getElementById(`toggle-${key}`);
+  const isOn = el.classList.contains('on');
+  el.classList.toggle('on');
+  state.settings[key] = isOn ? '0' : '1';
+}
+
+async function saveSettings() {
+  await fetch(`${API}/settings`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      auto_generate: state.settings.auto_generate || '0',
+      auto_publish: state.settings.auto_publish || '0',
+    })
+  });
+  toast('Settings saved!', 'success');
+}
+
+// ─── Toast ────────────────────────────────────────────────────────────────────
+
+// Override default function defined above already - no-op needed
+
+// ─── Boot ─────────────────────────────────────────────────────────────────────
+
+(async () => {
+  if (await checkAuth()) {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'flex';
+    initApp();
+  }
+})();
+</script>
+</body>
+</html>
